@@ -51,13 +51,22 @@ class JournalsController extends AppController {
 		if ($this->request->is('post')) {
 			$this->Journal->create();
 
-            /* 残高表示するために、getLastBalance()をController/JournalsController.phpのaddメソッドから呼び出す*/
-            $lastBalance = $this->Journal->getLastBalance();
-            $newBalance = $lastBalance + $this->request->data['Journal']['deposit'] - $this->request->data['Journal']['payment'];
+            /* 残高表示するために、getPreviousBalance()をController/JournalsController.phpのaddメソッドから呼び出す*/
+            $previousBalance = $this->Journal->getPreviousBalance(
+                $this->request->data['Journal']['date']
+            );
+            $newBalance = $previousBalance
+                + $this->request->data['Journal']['deposit']
+                - $this->request->data['Journal']['payment'];
             $this->request->data['Journal']['balance'] = $newBalance;
 
-			if ($this->Journal->save($this->request->data)) {
-				$this->Flash->success(__('The journal has been saved.'));
+            $result = $this->Journal->save($this->request->data);
+            if ($result) {
+                // if the new rew record saved successfully, update the balance in all of newer records
+                $this->Journal->updateNewBalance($result['Journal']['date']);
+
+                $this->Flash->success(__('The journal has been saved.'));
+
 				return $this->redirect(array('action' => 'index'));
 			} else {
 				$this->Flash->error(__('The journal could not be saved. Please, try again.'));
